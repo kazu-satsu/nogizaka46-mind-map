@@ -1,1 +1,3 @@
-# nogizaka46-mind-map
+# Nogizaka46 Mind Map
+
+乃木坂46を紹介する閲覧用マインドマップです（2026-11-16時点の内容）。

@@ -1,0 +1,1358 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <!-- Empty inline icon: stops the browser fetching /favicon.ico, which
+         lives outside the artifact's routes and 404s. -->
+    <link rel="icon" href="data:," />
+    <title>Nogizaka46 Mind Map</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Phone tap targets: at least 32px tall. */
+      button, [role="button"], select, summary, input:not([type="checkbox"], [type="radio"]) { min-height: 2rem; }
+
+      :root {
+        color-scheme: light dark;
+        --bg: #faf7fc;
+        --surface: #ffffff;
+        --text: #241a2b;
+        --dim: #7a6b84;
+        --border: #e7dcf0;
+        --accent: #7e1083;
+        --font-display: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
+        --font-body: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN",
+          "Hiragino Sans", "Yu Gothic UI", "Yu Gothic", "Noto Sans JP", sans-serif;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #150e1c;
+          --surface: #211631;
+          --text: #f3ecf8;
+          --dim: #b3a3c2;
+          --border: #3a2850;
+          --accent: #d8a7e0;
+        }
+      }
+
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; }
+      body {
+        font-family: var(--font-body);
+        background: var(--bg);
+        color: var(--text);
+        font-size: 16px;
+        line-height: 1.5;
+      }
+      button { font-family: inherit; cursor: pointer; background: none; border: none; color: inherit; }
+      .sr-only {
+        position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+        overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+      }
+
+      .app { display: flex; flex-direction: column; min-height: 100dvh; }
+
+      /* ---------- Header ---------- */
+      header {
+        position: sticky; top: 0; z-index: 20;
+        border-bottom: 1px solid var(--border);
+        background: color-mix(in srgb, var(--bg) 95%, transparent);
+        backdrop-filter: blur(6px);
+        padding-top: env(safe-area-inset-top, 0px);
+      }
+      .head-inner { margin: 0 auto; width: 100%; max-width: 72rem; padding: 0 1rem; }
+      .head-top {
+        display: flex; align-items: center; justify-content: flex-end;
+        padding-top: 0.5rem;
+      }
+      .snapshot-note { margin: 0; font-size: 11px; color: var(--dim); }
+
+      .search-wrap { position: relative; padding: 0.35rem 0 0.75rem; }
+      .search-row { display: flex; align-items: center; gap: 0.5rem; }
+      .search-field { position: relative; flex: 1; min-width: 0; }
+      .search-icon {
+        pointer-events: none; position: absolute; left: 0.75rem; top: 50%;
+        transform: translateY(-50%); font-size: 14px; color: var(--dim);
+      }
+      #map-search {
+        width: 100%; border-radius: 999px; border: 1px solid var(--border);
+        background: var(--surface); padding: 0.625rem 2.25rem 0.625rem 2.25rem;
+        font-size: 16px; color: var(--text);
+        box-shadow: 0 1px 2px rgb(36 26 43 / 0.06);
+        font-family: inherit;
+      }
+      #map-search::placeholder { color: var(--dim); }
+      .search-clear {
+        position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%);
+        display: none; width: 1.75rem; height: 1.75rem; min-height: 1.75rem;
+        align-items: center; justify-content: center; border-radius: 999px;
+        font-size: 14px; color: var(--dim);
+      }
+      .search-clear.show { display: flex; }
+      .search-count { flex-shrink: 0; font-size: 12px; color: var(--dim); }
+
+      .dropdown {
+        position: absolute; left: 0; right: 0; top: calc(100% - 0.6rem); z-index: 30;
+        max-height: min(60vh, 420px); overflow: auto;
+        border-radius: 0.75rem; border: 1px solid var(--border);
+        background: var(--surface); box-shadow: 0 10px 28px rgb(36 26 43 / 0.16);
+      }
+      .dropdown ul { list-style: none; margin: 0; padding: 0; }
+      .dropdown li {
+        display: flex; align-items: stretch; gap: 0.25rem;
+        padding: 0.25rem 0.5rem; border-bottom: 1px solid var(--border);
+      }
+      .dropdown li:last-child { border-bottom: none; }
+      .result-main {
+        flex: 1; min-width: 0; text-align: left; border-radius: 0.5rem;
+        padding: 0.5rem; color: var(--text);
+      }
+      .result-label { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 600; }
+      .result-path { display: block; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--dim); }
+      .result-snippet {
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+        overflow: hidden; margin-top: 2px; font-size: 12px; line-height: 1.6; color: var(--dim);
+      }
+      .result-focus {
+        flex-shrink: 0; align-self: center; border-radius: 999px;
+        padding: 0.375rem 0.625rem; font-size: 12px; font-weight: 600;
+        background: #7e1083; color: #fff;
+      }
+      .dropdown-empty { padding: 1rem; font-size: 14px; color: var(--dim); margin: 0; }
+      .dropdown-foot { border-top: 1px solid var(--border); padding: 0.5rem 1rem; }
+      .dropdown-foot button { font-size: 12px; color: var(--dim); text-decoration: underline; text-underline-offset: 2px; min-height: 1.75rem; }
+
+      .attr-row { padding-bottom: 0.75rem; }
+      .attr-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem; }
+      .attr-toggle {
+        display: flex; align-items: center; gap: 0.25rem; border-radius: 999px;
+        padding: 0.25rem 0.5rem; font-size: 12px; font-weight: 500; color: var(--dim);
+        min-height: 1.75rem;
+      }
+      .attr-toggle .active-name { font-weight: 600; color: #7e1083; }
+      @media (prefers-color-scheme: dark) { .attr-toggle .active-name { color: var(--accent); } }
+      .attr-clear-link {
+        border-radius: 999px; padding: 0.25rem 0.625rem; font-size: 12px; font-weight: 600;
+        color: var(--dim); text-decoration: underline; text-underline-offset: 2px; min-height: 1.75rem;
+      }
+      .attr-chips { margin-top: 0.375rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem; }
+      .attr-chip {
+        border-radius: 999px; padding: 0.25rem 0.625rem; font-size: 12px; font-weight: 600;
+        border: 1px solid var(--border); background: var(--surface); color: var(--dim);
+        min-height: 1.75rem;
+      }
+      .attr-chip.active { background: #7e1083; color: #fff; border-color: #7e1083; }
+      .attr-chip .cnt { opacity: 0.7; }
+
+      /* ---------- Banners ---------- */
+      main { margin: 0 auto; width: 100%; max-width: 72rem; flex: 1; display: flex; flex-direction: column; min-height: 0; }
+      .banner {
+        border-bottom: 1px solid rgb(126 16 131 / 0.25);
+        background: rgb(126 16 131 / 0.08);
+        padding: 0.75rem 1rem;
+      }
+      .banner-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+      .banner-badge {
+        border-radius: 999px; background: #7e1083; color: #fff;
+        padding: 0.25rem 0.625rem; font-size: 12px; font-weight: 700; flex-shrink: 0;
+      }
+      .banner-text { margin: 0; min-width: 0; font-size: 14px; }
+      .banner-text .dim { color: var(--dim); }
+      .banner-action {
+        margin-left: auto; border-radius: 0.5rem; border: 1px solid var(--border);
+        background: var(--surface); padding: 0.375rem 0.75rem; font-size: 14px; font-weight: 600;
+      }
+      .banner-neighbours { margin-top: 0.5rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem; }
+      .banner-neighbours .nb-label { font-size: 12px; color: var(--dim); }
+      .nb-chip {
+        border-radius: 999px; border: 1px dashed var(--border); background: var(--surface);
+        padding: 0.25rem 0.625rem; font-size: 12px; min-height: 1.75rem;
+      }
+
+      /* ---------- Canvas ---------- */
+      .stage { position: relative; display: flex; flex-direction: column; height: 62vh; }
+      @media (min-width: 1024px) { .stage { height: auto; flex: 1; min-height: 0; } }
+      .canvas-wrap { position: relative; flex: 1; min-height: 0; }
+      .scroll { position: absolute; inset: 0; overflow: auto; -webkit-overflow-scrolling: touch; }
+      .scaler { transform-origin: 0 0; width: max-content; }
+      .canvas {
+        position: relative; padding: 2rem;
+        background-image: radial-gradient(var(--border) 1.1px, transparent 1.1px);
+        background-size: 22px 22px;
+      }
+      @media (min-width: 640px) { .canvas { padding: 3rem; } }
+      .canvas svg { pointer-events: none; position: absolute; left: 0; top: 0; }
+
+      .nrow { display: flex; align-items: center; }
+      .kids { margin-left: 3rem; display: flex; flex-direction: column; justify-content: center; gap: 0.75rem; }
+
+      .pill {
+        display: flex; flex-shrink: 0; cursor: pointer; align-items: center; gap: 0.5rem;
+        border: 2px solid var(--border); user-select: none; -webkit-user-select: none;
+      }
+      .pill.d0 {
+        border-radius: 1rem; padding: 1rem 1.5rem;
+        font-family: var(--font-display); font-size: 20px; font-weight: 700; line-height: 28px;
+        box-shadow: 0 4px 10px rgb(36 26 43 / 0.18);
+      }
+      .pill.d1 {
+        border-radius: 0.75rem; padding: 0.625rem 1rem;
+        font-family: var(--font-display); font-size: 16px; font-weight: 600; line-height: 24px;
+      }
+      .pill.d2 { border-radius: 0.5rem; padding: 0.5rem 0.75rem; font-size: 14px; line-height: 20px; }
+      .pill .dot { width: 8px; height: 8px; flex-shrink: 0; border-radius: 999px; }
+      .pill .lbl.dim-label { opacity: 0.6; }
+      .tag {
+        border-radius: 6px; padding: 2px 6px; font-size: 10px; font-weight: 600; line-height: 1;
+        background: rgb(122 107 132 / 0.15); color: var(--dim); white-space: nowrap;
+      }
+      .tag.on-root { background: rgb(255 255 255 / 0.25); color: #fff; }
+      .succ-chip {
+        border-radius: 999px; padding: 2px 6px; font-size: 10px; font-weight: 600; line-height: 1;
+        background: #0e7c86; color: #fff; white-space: nowrap;
+      }
+      .focus-chip {
+        border-radius: 999px; padding: 2px 6px; font-size: 10px; line-height: 1;
+        background: #7e1083; color: #fff; white-space: nowrap;
+      }
+      .note-chip {
+        border-radius: 999px; padding: 2px 6px; font-size: 10px; line-height: 1; white-space: nowrap;
+        background: rgb(126 16 131 / 0.1); color: var(--accent);
+      }
+      .note-chip.on-root { background: rgb(255 255 255 / 0.25); color: #fff; }
+      .toggle {
+        display: flex; height: 1.75rem; min-width: 1.75rem; align-items: center; justify-content: center;
+        border-radius: 999px; padding: 0 0.25rem; font-size: 12px; font-weight: 700;
+        background: var(--surface); color: var(--dim); border: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+      .toggle.on-root { background: rgb(255 255 255 / 0.25); color: #fff; border-color: transparent; }
+
+      .frame {
+        margin-top: 3rem; border-radius: 1rem; border: 2px dashed; padding: 1rem;
+      }
+      @media (min-width: 640px) { .frame { padding: 1.25rem; } }
+
+      .zoom {
+        position: absolute; bottom: 0.75rem; right: 0.75rem; z-index: 5;
+        display: flex; align-items: center; gap: 0.25rem;
+        border-radius: 999px; border: 1px solid var(--border);
+        background: var(--surface); padding: 0.25rem; box-shadow: 0 1px 3px rgb(36 26 43 / 0.12);
+      }
+      .zoom button {
+        display: flex; align-items: center; justify-content: center; border-radius: 999px; color: var(--text);
+      }
+      .zoom .zbtn { width: 2.25rem; height: 2.25rem; font-size: 18px; }
+      .zoom .zreset { height: 2.25rem; padding: 0 0.5rem; font-size: 12px; color: var(--dim); }
+      .zoom .zval { min-width: 2.75rem; text-align: center; font-size: 12px; color: var(--dim); }
+
+      /* ---------- Detail card ---------- */
+      .card {
+        position: absolute; bottom: 4rem; left: 0.75rem; right: 0.75rem; z-index: 10;
+        max-height: 72%; overflow: auto;
+        border-radius: 0.75rem; border: 1px solid var(--border);
+        background: var(--surface); padding: 1rem;
+        box-shadow: 0 12px 32px rgb(36 26 43 / 0.2);
+      }
+      @media (min-width: 640px) {
+        .card { bottom: auto; left: auto; right: 0.75rem; top: 0.75rem; width: 340px; }
+      }
+      .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
+      .card-head-main { min-width: 0; }
+      .card-path { margin: 0; overflow-wrap: break-word; font-size: 11px; line-height: 1.6; color: var(--dim); }
+      .card-title {
+        margin: 2px 0 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem;
+        font-size: 18px; font-weight: 700; line-height: 1.4;
+      }
+      .card-title .tag { font-size: 12px; padding: 2px 6px; border-radius: 6px; }
+      .card-close {
+        display: flex; width: 2rem; height: 2rem; flex-shrink: 0; align-items: center; justify-content: center;
+        border-radius: 999px; font-size: 16px; color: var(--dim);
+      }
+      .card-note { margin: 0.5rem 0 0; white-space: pre-wrap; font-size: 14px; line-height: 1.7; }
+      .card-note.empty { color: var(--dim); }
+      .card-release { margin: 0.5rem 0 0; font-size: 14px; }
+      .card-release .k { margin-right: 0.5rem; font-size: 12px; font-weight: 600; color: var(--dim); }
+      .card-sec { margin-top: 0.75rem; }
+      .card-sec-title { margin: 0; font-size: 12px; font-weight: 600; }
+      .card-sec-title.succ { color: #0e7c86; }
+      .card-sec-title.rel { color: var(--accent); }
+      .card-sec-title.kids-t { color: var(--dim); }
+      .jump-btn {
+        border-radius: 999px; border: 1px solid var(--border); background: var(--bg);
+        padding: 0.25rem 0.625rem; font-size: 12px; color: var(--text); min-height: 1.75rem;
+      }
+      .succ-btns { margin-top: 0.375rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem; }
+      .kid-btns { margin-top: 0.375rem; display: flex; flex-wrap: wrap; gap: 0.375rem; }
+      .rel-list { list-style: none; margin: 0.375rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.375rem; }
+      .rel-btn {
+        display: flex; width: 100%; align-items: center; gap: 0.375rem; text-align: left;
+        border-radius: 0.5rem; border: 1px dashed var(--border); background: var(--bg);
+        padding: 0.375rem 0.625rem; font-size: 14px; color: var(--text);
+      }
+      .rel-name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .rel-tag {
+        flex-shrink: 0; border-radius: 4px; padding: 2px 4px; font-size: 10px; font-weight: 600; line-height: 1;
+        background: var(--accent); color: #fff; opacity: 0.9;
+      }
+      .rel-tag.weak { background: rgb(154 138 165 / 0.3); color: #9a8aa5; opacity: 1; }
+      @media (prefers-color-scheme: dark) { .rel-tag { color: #241a2b; } .rel-tag.weak { color: #cbbfd9; } }
+      .weak-badge {
+        flex-shrink: 0; border-radius: 999px; padding: 2px 6px; font-size: 10px; font-weight: 600; line-height: 1;
+        background: rgb(154 138 165 / 0.3); color: #9a8aa5;
+      }
+      @media (prefers-color-scheme: dark) { .weak-badge { color: #cbbfd9; } }
+      .card-focus-btn {
+        width: 100%; border-radius: 0.5rem; padding: 0.5rem 0.75rem; margin-top: 1rem;
+        font-size: 14px; font-weight: 600; background: #7e1083; color: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header>
+        <div class="head-inner">
+          <div class="head-top">
+            <p class="snapshot-note">2026年11月16日時点の内容</p>
+          </div>
+          <div class="search-wrap">
+            <div class="search-row">
+              <div class="search-field">
+                <span class="search-icon" aria-hidden="true">🔍</span>
+                <label for="map-search" class="sr-only">マップを検索</label>
+                <input
+                  id="map-search"
+                  aria-label="マップを検索"
+                  value=""
+                  placeholder="ワードを検索（例：森平麗心、制服のマネキン）"
+                  autocomplete="off"
+                />
+                <button type="button" id="search-clear" class="search-clear" aria-label="検索をクリア">×</button>
+              </div>
+              <span class="search-count" id="search-count" role="status"></span>
+            </div>
+            <div id="search-dropdown"></div>
+          </div>
+          <div class="attr-row">
+            <div class="attr-head">
+              <button type="button" id="attr-toggle" class="attr-toggle" aria-expanded="false" aria-controls="attr-chips" aria-label="属性フィルターの一覧を開く">
+                <span aria-hidden="true" id="attr-caret">▸</span>
+                <span>属性で絞り込む</span>
+                <span class="active-name" id="attr-active-name"></span>
+              </button>
+              <button type="button" id="attr-clear-closed" class="attr-clear-link" style="display:none">解除</button>
+            </div>
+            <div id="attr-chips" class="attr-chips" role="group" aria-label="属性で絞り込む" style="display:none"></div>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <div id="banners"></div>
+        <div class="stage" id="stage">
+          <div class="canvas-wrap">
+            <div class="scroll" id="scroll">
+              <div id="sizer">
+                <div class="scaler" id="scaler">
+                  <div class="canvas" id="canvas">
+                    <svg id="edges-svg" aria-hidden="true"></svg>
+                    <div id="tree-root"></div>
+                    <div id="frames"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="zoom" role="group" aria-label="表示倍率">
+              <button type="button" class="zbtn" id="zoom-out" aria-label="縮小">−</button>
+              <span class="zval" id="zoom-val">100%</span>
+              <button type="button" class="zbtn" id="zoom-in" aria-label="拡大">＋</button>
+              <button type="button" class="zreset" id="zoom-reset" aria-label="表示倍率を100%に戻す">リセット</button>
+            </div>
+          </div>
+          <div id="card-slot"></div>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      "use strict";
+      fetch("data.json")
+        .then(function (res) {
+          if (!res.ok) throw new Error("data.json: " + res.status);
+          return res.json();
+        })
+        .then(function (DATA) {
+
+      var ROOT = DATA.root;
+      var LINKS = DATA.links;
+      var SUCCS = DATA.successions;
+
+      var PURPLE = "#7e1083";
+      var SUCCESSION_COLOR = "#0e7c86";
+      var WEAK_COLOR = "#9a8aa5";
+      var FALLBACK_COLOR = "#7e1083";
+      var PALETTE = ["#7e1083", "#d4527a", "#4a9464", "#4a7fb5", "#d29a26", "#c05a3c"];
+      var CATEGORY_STYLE = {
+        member: { border: "#4a9464", bg: "#4a946433" },
+        song: { border: "#4a7fb5", bg: "#4a7fb533" },
+        yougo: { border: "#d29a26", bg: "#d29a2640" },
+      };
+      var RELEASE_ATTRIBUTE = "収録";
+
+      function branchColor(index) {
+        return PALETTE[index % PALETTE.length] || FALLBACK_COLOR;
+      }
+      function isKeyedAttribute(a) { return a.indexOf("：") !== -1; }
+      function parseAttributes(attribute) {
+        var raw = String(attribute || "").split(/[、,]/).map(function (s) { return s.trim(); }).filter(function (s) { return s !== ""; });
+        var out = [];
+        for (var i = 0; i < raw.length; i++) {
+          var seg = raw[i];
+          var prev = out[out.length - 1];
+          if (prev !== undefined && isKeyedAttribute(prev) && seg.indexOf("：") === -1) {
+            out[out.length - 1] = prev + "、" + seg;
+          } else {
+            out.push(seg);
+          }
+        }
+        return out;
+      }
+      function plainTags(attribute) {
+        return parseAttributes(attribute).filter(function (t) { return !isKeyedAttribute(t); });
+      }
+      function keyedAttributeValue(attribute, name) {
+        var parts = parseAttributes(attribute);
+        for (var i = 0; i < parts.length; i++) {
+          if (!isKeyedAttribute(parts[i])) continue;
+          var idx = parts[i].indexOf("：");
+          if (parts[i].slice(0, idx).trim() === name) return parts[i].slice(idx + 1).trim();
+        }
+        return "";
+      }
+      function nodeCategory(node, branchLabel) {
+        if (parseAttributes(node.attribute).indexOf("用語") !== -1) return "yougo";
+        if (branchLabel === "メンバー") return "member";
+        if (branchLabel === "楽曲") return "song";
+        return null;
+      }
+      function countDescendants(node) {
+        var n = 0;
+        node.children.forEach(function (c) { n += 1 + countDescendants(c); });
+        return n;
+      }
+      function countAllNodes(node) {
+        var n = 1;
+        node.children.forEach(function (c) { n += countAllNodes(c); });
+        return n;
+      }
+      function successionNextId(id) {
+        for (var i = 0; i < SUCCS.length; i++) if (SUCCS[i].fromId === id) return SUCCS[i].toId;
+        return null;
+      }
+      function successionPrevId(id) {
+        for (var i = 0; i < SUCCS.length; i++) if (SUCCS[i].toId === id) return SUCCS[i].fromId;
+        return null;
+      }
+      function directLinkNeighbourIds(id) {
+        var out = [];
+        LINKS.forEach(function (l) {
+          if (l.fromId === id && out.indexOf(l.toId) === -1) out.push(l.toId);
+          if (l.toId === id && out.indexOf(l.fromId) === -1) out.push(l.fromId);
+        });
+        return out;
+      }
+
+      /* Indexes over the full tree */
+      var nodeById = new Map();
+      var parentById = new Map();
+      var flatWithPath = [];
+      (function indexTree() {
+        var walk = function (n, parent, path, pathIds) {
+          nodeById.set(n.id, n);
+          parentById.set(n.id, parent);
+          var label = n.label || "（タイトル未入力）";
+          var nextPath = path.concat([label]);
+          flatWithPath.push({
+            id: n.id, label: n.label, note: n.note, attribute: n.attribute,
+            path: nextPath, pathIds: pathIds.concat([n.id]),
+          });
+          n.children.forEach(function (c) { walk(c, n.id, nextPath, pathIds.concat([n.id])); });
+        };
+        walk(ROOT, null, [], []);
+      })();
+      var flatById = new Map(flatWithPath.map(function (f) { return [f.id, f]; }));
+      function labelOf(id) {
+        var f = flatById.get(id);
+        return (f && f.label) || "（タイトル未入力）";
+      }
+      function findChain(id) {
+        var chain = [];
+        var cur = id;
+        var guard = 0;
+        while (cur !== null && cur !== undefined && guard++ < 10000) {
+          var n = nodeById.get(cur);
+          if (!n) break;
+          chain.unshift(n);
+          cur = parentById.get(cur);
+        }
+        return chain;
+      }
+      var colorMap = (function buildBranchColorMap() {
+        var map = new Map();
+        map.set(ROOT.id, FALLBACK_COLOR);
+        ROOT.children.forEach(function (child, i) {
+          var col = branchColor(i);
+          var walk = function (n) { map.set(n.id, col); n.children.forEach(walk); };
+          walk(child);
+        });
+        return map;
+      })();
+      var totalCount = countAllNodes(ROOT);
+
+      function computeFocusKeep(focusId) {
+        var focusNode = nodeById.get(focusId);
+        if (!focusNode) return new Set(nodeById.keys());
+        var keep = new Set();
+        var addSubtree = function (n) { keep.add(n.id); n.children.forEach(addSubtree); };
+        var addAncestors = function (id) {
+          var cur = id;
+          while (cur !== null && cur !== undefined) {
+            keep.add(cur);
+            cur = parentById.get(cur);
+          }
+        };
+        addSubtree(focusNode);
+        addAncestors(focusId);
+        var focusSubtreeIds = new Set();
+        (function collect(n) { focusSubtreeIds.add(n.id); n.children.forEach(collect); })(focusNode);
+        var neighbours = new Set();
+        LINKS.forEach(function (l) {
+          if (focusSubtreeIds.has(l.fromId)) neighbours.add(l.toId);
+          if (focusSubtreeIds.has(l.toId)) neighbours.add(l.fromId);
+        });
+        var succNext = new Map(SUCCS.map(function (s) { return [s.fromId, s.toId]; }));
+        var succPrev = new Map(SUCCS.map(function (s) { return [s.toId, s.fromId]; }));
+        focusSubtreeIds.forEach(function (id) {
+          var cur = id, seenF = new Set();
+          while (cur !== undefined && succNext.has(cur) && !seenF.has(cur)) {
+            seenF.add(cur);
+            cur = succNext.get(cur);
+            if (cur !== undefined) neighbours.add(cur);
+          }
+          cur = id;
+          var seenB = new Set();
+          while (cur !== undefined && succPrev.has(cur) && !seenB.has(cur)) {
+            seenB.add(cur);
+            cur = succPrev.get(cur);
+            if (cur !== undefined) neighbours.add(cur);
+          }
+        });
+        neighbours.forEach(function (nid) {
+          if (focusSubtreeIds.has(nid)) return;
+          var nn = nodeById.get(nid);
+          if (!nn) return;
+          addAncestors(nid);
+          addSubtree(nn);
+        });
+        keep.add(ROOT.id);
+        return keep;
+      }
+      function pruneTree(node, keep) {
+        if (!keep.has(node.id)) return null;
+        var children = [];
+        node.children.forEach(function (c) {
+          var p = pruneTree(c, keep);
+          if (p) children.push(p);
+        });
+        var copy = {};
+        for (var k in node) copy[k] = node[k];
+        copy.collapsed = false;
+        copy.children = children;
+        return copy;
+      }
+      function applyCollapsedOverrides(node, overrides) {
+        var copy = {};
+        for (var k in node) copy[k] = node[k];
+        copy.collapsed = overrides.has(node.id) ? overrides.get(node.id) : node.collapsed;
+        copy.children = node.children.map(function (c) { return applyCollapsedOverrides(c, overrides); });
+        return copy;
+      }
+      function collectEdges(rootNode) {
+        var out = [];
+        var walk = function (node, color, isRoot) {
+          if (node.collapsed) return;
+          node.children.forEach(function (child, i) {
+            var c = colorMap.get(child.id) || (isRoot ? branchColor(i) : color);
+            if (!(isRoot && child.separate)) out.push({ from: node.id, to: child.id, color: c });
+            walk(child, c, false);
+          });
+        };
+        walk(rootNode, FALLBACK_COLOR, true);
+        return out;
+      }
+      function esc(s) {
+        return String(s == null ? "" : s)
+          .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+      }
+
+      /* ---------------- State ---------------- */
+      var state = {
+        query: "",
+        searchOpen: false,
+        focusId: null,
+        attrFilter: null,
+        attrOpen: false,
+        cardId: null,
+        pinned: false,
+        overrides: new Map(),
+        scale: 1,
+      };
+      var hoverTimer = null;
+      var hoverId = null;
+      var pendingScrollId = null;
+
+      var els = {
+        input: document.getElementById("map-search"),
+        clear: document.getElementById("search-clear"),
+        count: document.getElementById("search-count"),
+        dropdown: document.getElementById("search-dropdown"),
+        attrToggle: document.getElementById("attr-toggle"),
+        attrCaret: document.getElementById("attr-caret"),
+        attrActiveName: document.getElementById("attr-active-name"),
+        attrClearClosed: document.getElementById("attr-clear-closed"),
+        attrChips: document.getElementById("attr-chips"),
+        banners: document.getElementById("banners"),
+        scroll: document.getElementById("scroll"),
+        sizer: document.getElementById("sizer"),
+        scaler: document.getElementById("scaler"),
+        canvas: document.getElementById("canvas"),
+        svg: document.getElementById("edges-svg"),
+        treeRoot: document.getElementById("tree-root"),
+        frames: document.getElementById("frames"),
+        cardSlot: document.getElementById("card-slot"),
+        zoomVal: document.getElementById("zoom-val"),
+      };
+
+      /* ---------------- Derived data ---------------- */
+      function queryNorm() { return state.query.trim().toLowerCase(); }
+      function matchesQuery(f) {
+        var q = queryNorm();
+        return f.label.toLowerCase().indexOf(q) !== -1 ||
+          f.note.toLowerCase().indexOf(q) !== -1 ||
+          f.attribute.toLowerCase().indexOf(q) !== -1;
+      }
+      function searchResults() {
+        var q = queryNorm();
+        if (!q) return [];
+        return flatWithPath.filter(matchesQuery).map(function (f) {
+          var inNote = f.label.toLowerCase().indexOf(q) === -1 &&
+            (f.note.toLowerCase().indexOf(q) !== -1 || f.attribute.toLowerCase().indexOf(q) !== -1);
+          var snippet = "";
+          if (f.attribute && f.attribute.toLowerCase().indexOf(q) !== -1) {
+            snippet = "属性：" + f.attribute;
+          } else if (f.note) {
+            var idx = f.note.toLowerCase().indexOf(q);
+            if (idx >= 0) {
+              var start = Math.max(0, idx - 18);
+              var end = Math.min(f.note.length, idx + q.length + 28);
+              snippet = (start > 0 ? "…" : "") + f.note.slice(start, end) + (end < f.note.length ? "…" : "");
+            } else {
+              snippet = f.note.slice(0, 60);
+            }
+          }
+          var copy = {};
+          for (var k in f) copy[k] = f[k];
+          copy.inNote = inNote;
+          copy.snippet = snippet;
+          return copy;
+        }).slice(0, 40);
+      }
+      var attributeValues = (function () {
+        var counts = new Map();
+        flatWithPath.forEach(function (f) {
+          plainTags(f.attribute).forEach(function (tag) {
+            counts.set(tag, (counts.get(tag) || 0) + 1);
+          });
+        });
+        return Array.from(counts.entries()).map(function (e) {
+          return { value: e[0], count: e[1] };
+        }).sort(function (a, b) {
+          return b.count - a.count || a.value.localeCompare(b.value, "ja");
+        });
+      })();
+      function attrKeepSet() {
+        if (state.attrFilter === null) return null;
+        var keep = new Set();
+        var walk = function (n, ancestors) {
+          if (parseAttributes(n.attribute).indexOf(state.attrFilter) !== -1) {
+            keep.add(n.id);
+            ancestors.forEach(function (a) { keep.add(a); });
+          }
+          n.children.forEach(function (c) { walk(c, ancestors.concat([n.id])); });
+        };
+        walk(ROOT, []);
+        keep.add(ROOT.id);
+        return keep;
+      }
+      function attrMatchedIds() {
+        if (state.attrFilter === null) return null;
+        var s = new Set();
+        flatWithPath.forEach(function (f) {
+          if (parseAttributes(f.attribute).indexOf(state.attrFilter) !== -1) s.add(f.id);
+        });
+        return s;
+      }
+      function focusKeepSet() {
+        if (state.focusId === null) return null;
+        return computeFocusKeep(state.focusId);
+      }
+      function activeKeepSet() {
+        var fk = focusKeepSet();
+        var ak = attrKeepSet();
+        if (fk && ak) return new Set(Array.from(fk).filter(function (id) { return ak.has(id); }));
+        return fk || ak;
+      }
+      function displayData() {
+        var keep = activeKeepSet();
+        var base = state.overrides.size === 0 ? ROOT : applyCollapsedOverrides(ROOT, state.overrides);
+        var dispRoot = keep ? (pruneTree(base, keep) || base) : base;
+        var dispLinks = keep ? LINKS.filter(function (l) { return keep.has(l.fromId) && keep.has(l.toId); }) : LINKS;
+        var dispSuccs = keep ? SUCCS.filter(function (s) { return keep.has(s.fromId) && keep.has(s.toId); }) : SUCCS;
+        return { root: dispRoot, links: dispLinks, successions: dispSuccs, keep: keep };
+      }
+      function highlightIds() {
+        if (!queryNorm()) return null;
+        return new Set(searchResults().map(function (r) { return r.id; }));
+      }
+
+      /* ---------------- Tree rendering ---------------- */
+      function pillHtml(node, depth, myColor, branchLabel, ctx) {
+        var isRoot = depth === 0;
+        var myBranchLabel = isRoot ? null : (depth === 1 ? node.label : branchLabel);
+        var cat = isRoot ? null : nodeCategory(node, myBranchLabel);
+        var catStyle = cat ? CATEGORY_STYLE[cat] : null;
+        var selected = node.id === state.cardId;
+        var isFocused = state.focusId !== null && node.id === state.focusId;
+        var isHighlighted = ctx.highlights ? ctx.highlights.has(node.id) : false;
+
+        var style = {};
+        if (isRoot) {
+          style.backgroundColor = PURPLE; style.color = "#fff"; style.borderColor = PURPLE;
+        } else if (depth === 1) {
+          style.backgroundColor = myColor + "1f"; style.borderColor = myColor; style.color = "var(--text)";
+        } else {
+          style.backgroundColor = "var(--surface)"; style.borderColor = "var(--border)"; style.color = "var(--text)";
+        }
+        if (catStyle) {
+          style.backgroundColor = catStyle.bg; style.borderColor = catStyle.border;
+        }
+        if (isFocused && !isRoot) {
+          style.borderColor = PURPLE;
+          if (!catStyle) style.backgroundColor = "#7e108322";
+        }
+        if (selected) {
+          style.boxShadow = "0 0 0 2px var(--bg), 0 0 0 4.5px var(--accent)";
+        } else if (isHighlighted) {
+          style.boxShadow = "0 0 0 2px var(--bg), 0 0 0 4.5px #d29a26";
+          style.borderColor = "#d29a26";
+        } else if (isFocused) {
+          style.boxShadow = "0 0 0 2px var(--bg), 0 0 0 4px #7e1083";
+        }
+        var styleStr = Object.keys(style).map(function (k) {
+          var cssK = k.replace(/[A-Z]/g, function (m) { return "-" + m.toLowerCase(); });
+          return cssK + ":" + style[k];
+        }).join(";");
+
+        var inner = "";
+        if (depth >= 2) {
+          inner += '<span class="dot" style="background-color:' + esc(catStyle ? catStyle.border : myColor) + '" aria-hidden="true"></span>';
+        }
+        inner += '<span class="lbl' + (node.label ? "" : " dim-label") + '">' + esc(node.label || "（タイトル未入力）") + "</span>";
+        plainTags(node.attribute).forEach(function (tag) {
+          inner += '<span class="tag' + (isRoot ? " on-root" : "") + '">' + esc(tag) + "</span>";
+        });
+        if (successionNextId(node.id) !== null) {
+          inner += '<span class="succ-chip" title="このノードには「次のもの」（後継）があります。時間の流れは矢印でつながっています">次へ ↓</span>';
+        }
+        if (isFocused) inner += '<span class="focus-chip">中心</span>';
+        if (node.note.trim() !== "") {
+          inner += '<span class="note-chip' + (isRoot ? " on-root" : "") + '">解説</span>';
+        }
+        if (node.children.length > 0) {
+          var hidden = node.collapsed ? countDescendants(node) : 0;
+          inner += '<button type="button" class="toggle' + (isRoot ? " on-root" : "") + '" data-toggle="' + node.id +
+            '" aria-label="' + esc(node.collapsed
+              ? "「" + node.label + "」の子ノードを展開する"
+              : "「" + node.label + "」の子ノードを折りたたむ") + '">' +
+            (node.collapsed ? "＋" + hidden : "−") + "</button>";
+        }
+        var cls = "pill d" + (depth >= 2 ? 2 : depth);
+        return '<div class="' + cls + '" data-pill="' + node.id + '" role="button" tabindex="0" aria-pressed="' +
+          (selected ? "true" : "false") + '" aria-label="' +
+          esc(node.label ? "ノード「" + node.label + "」" : "タイトル未入力のノード") +
+          '" style="' + esc(styleStr) + '">' + inner + "</div>";
+      }
+      function nodeTreeHtml(node, depth, color, branchLabel, ctx) {
+        var isRoot = depth === 0;
+        var myColor = colorMap.get(node.id) || color;
+        var myBranchLabel = isRoot ? null : (depth === 1 ? node.label : branchLabel);
+        var html = '<div class="nrow">' + pillHtml(node, depth, myColor, branchLabel, ctx);
+        if (node.children.length > 0 && !node.collapsed) {
+          html += '<div class="kids">';
+          node.children.forEach(function (child, i) {
+            if (isRoot && child.separate) return;
+            html += nodeTreeHtml(child, depth + 1, isRoot ? branchColor(i) : myColor, isRoot ? child.label : myBranchLabel, ctx);
+          });
+          html += "</div>";
+        }
+        html += "</div>";
+        return html;
+      }
+
+      /* ---------------- Edge measuring ---------------- */
+      var lastSize = { w: 0, h: 0 };
+      function measure(disp) {
+        var wrap = els.canvas;
+        var pillEls = new Map();
+        wrap.querySelectorAll("[data-pill]").forEach(function (el) {
+          pillEls.set(Number(el.getAttribute("data-pill")), el);
+        });
+        var rectOf = function (el) {
+          var x = 0, y = 0, cur = el;
+          while (cur && cur !== wrap) {
+            x += cur.offsetLeft;
+            y += cur.offsetTop;
+            cur = cur.offsetParent;
+          }
+          return { left: x, top: y, width: el.offsetWidth, height: el.offsetHeight };
+        };
+        var paths = [];
+        var labels = [];
+        var inFocus = state.focusId !== null;
+        collectEdges(disp.root).forEach(function (pair) {
+          var a = pillEls.get(pair.from), b = pillEls.get(pair.to);
+          if (!a || !b) return;
+          var ra = rectOf(a), rb = rectOf(b);
+          var x1 = ra.left + ra.width, y1 = ra.top + ra.height / 2;
+          var x2 = rb.left, y2 = rb.top + rb.height / 2;
+          var dx = Math.max(20, Math.abs(x2 - x1) / 2);
+          paths.push({
+            d: "M " + x1 + " " + y1 + " C " + (x1 + dx) + " " + y1 + ", " + (x2 - dx) + " " + y2 + ", " + x2 + " " + y2,
+            color: pair.color, kind: "tree",
+          });
+        });
+        disp.links.forEach(function (link) {
+          var isWeak = link.kind === "weak";
+          if (isWeak && !inFocus) return;
+          var a = pillEls.get(link.fromId), b = pillEls.get(link.toId);
+          if (!a || !b) return;
+          var ra = rectOf(a), rb = rectOf(b);
+          var aIsLeft = ra.left + ra.width / 2 <= rb.left + rb.width / 2;
+          var fromRect = aIsLeft ? ra : rb;
+          var toRect = aIsLeft ? rb : ra;
+          var x1 = fromRect.left + fromRect.width, y1 = fromRect.top + fromRect.height / 2;
+          var x2 = toRect.left, y2 = toRect.top + toRect.height / 2;
+          var dx = Math.max(36, Math.abs(x2 - x1) / 2 + 18);
+          paths.push({
+            d: "M " + x1 + " " + y1 + " C " + (x1 + dx) + " " + y1 + ", " + (x2 - dx) + " " + y2 + ", " + x2 + " " + y2,
+            color: isWeak ? WEAK_COLOR : "var(--accent)", kind: isWeak ? "weak" : "cross",
+          });
+          var relLabel = (link.relation || "").trim();
+          if (relLabel) {
+            var mx = (x1 + 3 * (x1 + dx) + 3 * (x2 - dx) + x2) / 8;
+            var my = (y1 + 3 * y1 + 3 * y2 + y2) / 8;
+            labels.push({ text: relLabel, x: mx, y: my - 5, color: isWeak ? WEAK_COLOR : null });
+          }
+        });
+        disp.successions.forEach(function (s) {
+          var a = pillEls.get(s.fromId), b = pillEls.get(s.toId);
+          if (!a || !b) return;
+          var ra = rectOf(a), rb = rectOf(b);
+          var d;
+          if (Math.abs(ra.left - rb.left) < 4 && rb.top > ra.top) {
+            var x = Math.min(ra.left, rb.left) - 14;
+            var y1 = ra.top + ra.height / 2;
+            var y2 = rb.top + rb.height / 2;
+            d = "M " + ra.left + " " + y1 + " C " + x + " " + y1 + ", " + x + " " + y2 + ", " + rb.left + " " + y2;
+          } else {
+            var x1 = ra.left + ra.width / 2, yy1 = ra.top + ra.height;
+            var x2 = rb.left + rb.width / 2, yy2 = rb.top + rb.height;
+            var yb = Math.max(yy1, yy2) + 26;
+            d = "M " + x1 + " " + yy1 + " C " + x1 + " " + yb + ", " + x2 + " " + yb + ", " + x2 + " " + (yy2 + 4);
+          }
+          paths.push({ d: d, color: SUCCESSION_COLOR, kind: "succession" });
+        });
+        var w = wrap.scrollWidth, h = wrap.scrollHeight;
+        lastSize = { w: w, h: h };
+        var svgHtml = '<defs><marker id="succession-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="' + SUCCESSION_COLOR + '"></path></marker></defs>';
+        paths.forEach(function (p) {
+          var sw = p.kind === "succession" ? 2.5 : p.kind === "weak" ? 1.5 : 2;
+          var op = p.kind === "weak" ? 0.85 : p.kind === "cross" ? 0.9 : p.kind === "succession" ? 0.95 : 0.55;
+          var dash = p.kind === "weak" ? ' stroke-dasharray="3 5"' : p.kind === "cross" ? ' stroke-dasharray="7 6"' : "";
+          var marker = p.kind === "succession" ? ' marker-end="url(#succession-arrow)"' : "";
+          svgHtml += '<path d="' + p.d + '" fill="none" stroke="' + p.color + '" stroke-width="' + sw + '" opacity="' + op + '"' + dash + marker + "></path>";
+        });
+        labels.forEach(function (lb) {
+          svgHtml += '<text x="' + lb.x + '" y="' + lb.y + '" text-anchor="middle" font-size="10.5" font-weight="600" fill="' +
+            (lb.color || "var(--accent)") + '" stroke="var(--bg)" stroke-width="3.5" paint-order="stroke" stroke-linejoin="round">' +
+            esc(lb.text) + "</text>";
+        });
+        els.svg.setAttribute("width", w);
+        els.svg.setAttribute("height", h);
+        els.svg.innerHTML = svgHtml;
+        applyScale();
+      }
+      function applyScale() {
+        els.scaler.style.transform = "scale(" + state.scale + ")";
+        els.zoomVal.textContent = Math.round(state.scale * 100) + "%";
+        if (lastSize.w > 0) {
+          els.sizer.style.width = lastSize.w * state.scale + "px";
+          els.sizer.style.height = lastSize.h * state.scale + "px";
+        }
+      }
+
+      /* ---------------- Rendering ---------------- */
+      function renderBanners() {
+        var html = "";
+        if (state.focusId !== null) {
+          var f = flatById.get(state.focusId);
+          if (f) {
+            var fk = focusKeepSet();
+            html += '<div class="banner" role="status" aria-label="フォーカス表示中"><div class="banner-row">' +
+              '<span class="banner-badge">フォーカス中</span>' +
+              '<p class="banner-text"><strong>' + esc(f.label || "（タイトル未入力）") + '</strong>' +
+              '<span class="dim"> を中心に、関連する ' + (fk ? fk.size : 0) + " / " + totalCount + " ノードだけ表示中</span></p>" +
+              '<button type="button" class="banner-action" data-action="clear-focus">全体に戻る</button></div>';
+            var ids = directLinkNeighbourIds(state.focusId);
+            var nx = successionNextId(state.focusId);
+            var pv = successionPrevId(state.focusId);
+            if (nx !== null && ids.indexOf(nx) === -1) ids.push(nx);
+            if (pv !== null && ids.indexOf(pv) === -1) ids.push(pv);
+            var nbs = ids.map(function (id) { return flatById.get(id); }).filter(Boolean);
+            if (nbs.length > 0) {
+              html += '<div class="banner-neighbours"><span class="nb-label">つながっているワード：</span>';
+              nbs.forEach(function (n) {
+                html += '<button type="button" class="nb-chip" data-neighbour="' + n.id + '">' + esc(n.label || "（タイトル未入力）") + " →</button>";
+              });
+              html += "</div>";
+            }
+            html += "</div>";
+          }
+        }
+        if (state.attrFilter !== null) {
+          var matched = attrMatchedIds();
+          html += '<div class="banner" role="status" aria-label="属性フィルター中"><div class="banner-row">' +
+            '<span class="banner-badge">属性フィルター中</span>' +
+            '<p class="banner-text">属性タグ「<strong>' + esc(state.attrFilter) + '</strong>」の付いたノード ' +
+            (matched ? matched.size : 0) + " 件と、その場所を示す親の流れだけを表示中" +
+            (state.focusId !== null ? "（フォーカス表示と重なっています）" : "") + "</p>" +
+            '<button type="button" class="banner-action" data-action="clear-attr">フィルターを解除</button></div></div>';
+        }
+        els.banners.innerHTML = html;
+      }
+
+      function renderCanvas() {
+        var sl = els.scroll.scrollLeft, st = els.scroll.scrollTop;
+        var disp = displayData();
+        var ctx = { highlights: highlightIds() };
+        els.treeRoot.innerHTML = nodeTreeHtml(disp.root, 0, FALLBACK_COLOR, null, ctx);
+        var framesHtml = "";
+        disp.root.children.filter(function (c) { return c.separate; }).forEach(function (branch) {
+          var bColor = colorMap.get(branch.id) || branchColor(ROOT.children.indexOf(branch));
+          framesHtml += '<section class="frame" aria-label="別枠：' + esc(branch.label || "（タイトル未入力）") +
+            '" style="border-color:' + esc(bColor) + ";background-color:" + esc(bColor) + '0a">' +
+            nodeTreeHtml(branch, 1, bColor, branch.label, ctx) + "</section>";
+        });
+        els.frames.innerHTML = framesHtml;
+        measure(disp);
+        els.scroll.scrollLeft = sl;
+        els.scroll.scrollTop = st;
+        if (pendingScrollId !== null) {
+          var target = pendingScrollId;
+          pendingScrollId = null;
+          scrollToNode(target);
+        }
+      }
+
+      function scrollToNode(id) {
+        var el = els.canvas.querySelector('[data-pill="' + id + '"]');
+        if (!el) return;
+        var sc = els.scroll;
+        var r = el.getBoundingClientRect();
+        var cr = sc.getBoundingClientRect();
+        var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        sc.scrollTo({
+          left: sc.scrollLeft + (r.left + r.width / 2) - (cr.left + Math.min(cr.width * 0.35, 260)),
+          top: sc.scrollTop + (r.top + r.height / 2) - (cr.top + cr.height * 0.4),
+          behavior: reduce ? "auto" : "smooth",
+        });
+      }
+
+      function renderCard() {
+        if (state.cardId === null) { els.cardSlot.innerHTML = ""; return; }
+        var node = nodeById.get(state.cardId);
+        if (!node) { els.cardSlot.innerHTML = ""; return; }
+        var f = flatById.get(state.cardId);
+        var path = f ? f.path : [];
+        var html = '<div class="card" role="dialog" aria-label="「' + esc(node.label || "（タイトル未入力）") + '」の詳細">';
+        html += '<div class="card-head"><div class="card-head-main">';
+        if (path.length > 1) html += '<p class="card-path">' + esc(path.join(" ＞ ")) + "</p>";
+        html += '<p class="card-title">' + esc(node.label || "（タイトル未入力）");
+        plainTags(node.attribute).forEach(function (tag) {
+          html += '<span class="tag">' + esc(tag) + "</span>";
+        });
+        html += '</p></div><button type="button" class="card-close" data-action="close-card" aria-label="詳細カードを閉じる">×</button></div>';
+
+        if (node.note.trim() !== "") {
+          html += '<p class="card-note">' + esc(node.note) + "</p>";
+        } else {
+          html += '<p class="card-note empty">（解説はまだありません）</p>';
+        }
+        var release = keyedAttributeValue(node.attribute, RELEASE_ATTRIBUTE);
+        if (release !== "") {
+          html += '<p class="card-release"><span class="k">収録</span>' + esc(release) + "</p>";
+        }
+        var prevId = successionPrevId(node.id);
+        var nextId = successionNextId(node.id);
+        if (prevId !== null || nextId !== null) {
+          html += '<div class="card-sec"><p class="card-sec-title succ">後継（時間の流れ）</p><div class="succ-btns">';
+          if (prevId !== null) html += '<button type="button" class="jump-btn" data-jump="' + prevId + '">← 前：' + esc(labelOf(prevId)) + "</button>";
+          if (nextId !== null) html += '<button type="button" class="jump-btn" data-jump="' + nextId + '">次：' + esc(labelOf(nextId)) + " →</button>";
+          html += "</div></div>";
+        }
+        var related = LINKS.filter(function (l) { return l.fromId === node.id || l.toId === node.id; }).map(function (l) {
+          return {
+            linkId: l.id,
+            otherId: l.fromId === node.id ? l.toId : l.fromId,
+            relation: (l.relation || "").trim(),
+            weak: l.kind === "weak",
+          };
+        });
+        if (related.length > 0) {
+          html += '<div class="card-sec"><p class="card-sec-title rel">関連</p><ul class="rel-list">';
+          related.forEach(function (r) {
+            html += '<li><button type="button" class="rel-btn" data-jump="' + r.otherId + '">';
+            if (r.relation !== "") {
+              html += '<span class="rel-tag' + (r.weak ? " weak" : "") + '">' + esc(r.relation) + "</span>";
+            }
+            html += '<span class="rel-name">' + esc(labelOf(r.otherId)) + "</span>";
+            if (r.weak) html += '<span class="weak-badge">弱い関連</span>';
+            html += "</button></li>";
+          });
+          html += "</ul></div>";
+        }
+        if (node.children.length > 0) {
+          html += '<div class="card-sec"><p class="card-sec-title kids-t">子ノード（' + node.children.length + '件）</p><div class="kid-btns">';
+          node.children.forEach(function (c) {
+            html += '<button type="button" class="jump-btn" data-jump="' + c.id + '">' + esc(c.label || "（タイトル未入力）") + "</button>";
+          });
+          html += "</div></div>";
+        }
+        var isFocused = state.focusId === node.id;
+        html += '<button type="button" class="card-focus-btn" data-action="toggle-focus">' +
+          (isFocused ? "フォーカスを解除して全体を見る" : "◎ このワードを中心に見る") + "</button>";
+        html += "</div>";
+        els.cardSlot.innerHTML = html;
+      }
+
+      function renderSearch() {
+        var q = queryNorm();
+        els.clear.classList.toggle("show", state.query !== "");
+        if (!q) {
+          els.count.textContent = "";
+          els.dropdown.innerHTML = "";
+          return;
+        }
+        var results = searchResults();
+        var totalMatches = flatWithPath.filter(matchesQuery).length;
+        els.count.textContent = results.length + "件" + (totalMatches > 40 ? "（一部）" : "");
+        if (!state.searchOpen) { els.dropdown.innerHTML = ""; return; }
+        var html = '<div class="dropdown" role="listbox" aria-label="検索結果">';
+        if (results.length === 0) {
+          html += '<p class="dropdown-empty">「' + esc(state.query.trim()) + '」に一致するノードがありません。別の文字で試してみてください。</p>';
+        } else {
+          html += "<ul>";
+          results.forEach(function (r) {
+            html += '<li><button type="button" class="result-main" data-result="' + r.id + '">' +
+              '<span class="result-label">' + esc(r.label || "（タイトル未入力）") + "</span>" +
+              '<span class="result-path">' + esc(r.path.join(" ＞ ")) + "</span>" +
+              (r.snippet ? '<span class="result-snippet">' + esc(r.snippet) + "</span>" : "") +
+              '</button><button type="button" class="result-focus" data-result-focus="' + r.id +
+              '" aria-label="「' + esc(r.label || "（タイトル未入力）") + '」を中心に見る">中心に見る</button></li>';
+          });
+          html += "</ul>";
+        }
+        html += '<div class="dropdown-foot"><button type="button" data-action="close-search">検索結果を閉じる</button></div></div>';
+        els.dropdown.innerHTML = html;
+      }
+
+      function renderAttr() {
+        els.attrCaret.textContent = state.attrOpen ? "▾" : "▸";
+        els.attrToggle.setAttribute("aria-expanded", state.attrOpen ? "true" : "false");
+        els.attrToggle.setAttribute("aria-label", state.attrOpen ? "属性フィルターの一覧を折りたたむ" : "属性フィルターの一覧を開く");
+        els.attrActiveName.textContent = state.attrFilter !== null ? "：「" + state.attrFilter + "」で絞り込み中" : "";
+        els.attrClearClosed.style.display = state.attrFilter !== null && !state.attrOpen ? "" : "none";
+        if (!state.attrOpen) { els.attrChips.style.display = "none"; els.attrChips.innerHTML = ""; return; }
+        var html = "";
+        attributeValues.forEach(function (a) {
+          var active = state.attrFilter === a.value;
+          html += '<button type="button" class="attr-chip' + (active ? " active" : "") + '" data-attr="' + esc(a.value) +
+            '" aria-pressed="' + (active ? "true" : "false") + '" aria-label="属性「' + esc(a.value) + "」で絞り込む（" + a.count + '件）">' +
+            esc(a.value) + '<span class="cnt">（' + a.count + "）</span></button>";
+        });
+        if (state.attrFilter !== null) {
+          html += '<button type="button" class="attr-clear-link" data-action="clear-attr">解除</button>';
+        }
+        els.attrChips.innerHTML = html;
+        els.attrChips.style.display = "";
+      }
+
+      function update() {
+        renderBanners();
+        renderCanvas();
+        renderCard();
+        renderSearch();
+        renderAttr();
+      }
+
+      /* ---------------- Actions ---------------- */
+      function expandAncestors(id) {
+        var chain = findChain(id);
+        var ancestors = chain.slice(0, -1);
+        var changed = false;
+        ancestors.forEach(function (n) {
+          var cur = state.overrides.has(n.id) ? state.overrides.get(n.id) : n.collapsed;
+          if (cur) { state.overrides.set(n.id, false); changed = true; }
+        });
+        return changed;
+      }
+      function jumpTo(id) {
+        var keep = activeKeepSet();
+        if (keep && !keep.has(id)) {
+          state.focusId = null;
+          state.attrFilter = null;
+        }
+        state.cardId = id;
+        state.pinned = true;
+        expandAncestors(id);
+        pendingScrollId = id;
+        update();
+      }
+      function selectFromSearch(id, opts) {
+        if (opts && opts.focus) {
+          state.focusId = id;
+        } else {
+          var keep = activeKeepSet();
+          if (keep && !keep.has(id)) {
+            state.focusId = null;
+            state.attrFilter = null;
+          }
+        }
+        state.searchOpen = false;
+        state.cardId = id;
+        state.pinned = true;
+        expandAncestors(id);
+        pendingScrollId = id;
+        update();
+      }
+
+      /* ---------------- Events ---------------- */
+      els.input.addEventListener("input", function () {
+        state.query = els.input.value;
+        state.searchOpen = true;
+        renderSearch();
+        renderCanvas();
+      });
+      els.input.addEventListener("focus", function () {
+        state.searchOpen = true;
+        renderSearch();
+      });
+      els.input.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") {
+          state.query = "";
+          els.input.value = "";
+          state.searchOpen = false;
+          update();
+        }
+        if (e.key === "Enter") {
+          var results = searchResults();
+          if (results[0]) {
+            e.preventDefault();
+            selectFromSearch(results[0].id);
+          }
+        }
+      });
+      els.clear.addEventListener("click", function () {
+        state.query = "";
+        els.input.value = "";
+        state.searchOpen = false;
+        update();
+        els.input.focus();
+      });
+      els.dropdown.addEventListener("click", function (e) {
+        var rf = e.target.closest("[data-result-focus]");
+        if (rf) { selectFromSearch(Number(rf.getAttribute("data-result-focus")), { focus: true }); return; }
+        var rm = e.target.closest("[data-result]");
+        if (rm) { selectFromSearch(Number(rm.getAttribute("data-result"))); return; }
+        if (e.target.closest('[data-action="close-search"]')) {
+          state.searchOpen = false;
+          renderSearch();
+        }
+      });
+      document.addEventListener("click", function (e) {
+        if (state.searchOpen && !e.target.closest(".search-wrap")) {
+          state.searchOpen = false;
+          renderSearch();
+        }
+      });
+
+      els.attrToggle.addEventListener("click", function () {
+        state.attrOpen = !state.attrOpen;
+        renderAttr();
+      });
+      els.attrClearClosed.addEventListener("click", function () {
+        state.attrFilter = null;
+        update();
+      });
+      els.attrChips.addEventListener("click", function (e) {
+        var chip = e.target.closest("[data-attr]");
+        if (chip) {
+          var v = chip.getAttribute("data-attr");
+          state.attrFilter = state.attrFilter === v ? null : v;
+          update();
+          return;
+        }
+        if (e.target.closest('[data-action="clear-attr"]')) {
+          state.attrFilter = null;
+          update();
+        }
+      });
+
+      els.banners.addEventListener("click", function (e) {
+        var nb = e.target.closest("[data-neighbour]");
+        if (nb) {
+          var id = Number(nb.getAttribute("data-neighbour"));
+          state.focusId = id;
+          state.cardId = id;
+          state.pinned = true;
+          pendingScrollId = id;
+          update();
+          return;
+        }
+        if (e.target.closest('[data-action="clear-focus"]')) {
+          state.focusId = null;
+          update();
+          return;
+        }
+        if (e.target.closest('[data-action="clear-attr"]')) {
+          state.attrFilter = null;
+          update();
+        }
+      });
+
+      els.canvas.addEventListener("click", function (e) {
+        var tg = e.target.closest("[data-toggle]");
+        if (tg) {
+          e.stopPropagation();
+          if (state.focusId !== null || state.attrFilter !== null) return;
+          var id = Number(tg.getAttribute("data-toggle"));
+          var node = nodeById.get(id);
+          if (!node) return;
+          var cur = state.overrides.has(id) ? state.overrides.get(id) : node.collapsed;
+          state.overrides.set(id, !cur);
+          renderCanvas();
+          renderCard();
+          return;
+        }
+        var pill = e.target.closest("[data-pill]");
+        if (pill) {
+          state.cardId = Number(pill.getAttribute("data-pill"));
+          state.pinned = true;
+          renderCanvas();
+          renderCard();
+        }
+      });
+      els.canvas.addEventListener("mouseover", function (e) {
+        var pill = e.target.closest("[data-pill]");
+        if (!pill) return;
+        var id = Number(pill.getAttribute("data-pill"));
+        if (state.pinned || id === state.cardId || id === hoverId) return;
+        hoverId = id;
+        if (hoverTimer !== null) window.clearTimeout(hoverTimer);
+        hoverTimer = window.setTimeout(function () {
+          hoverId = null;
+          if (state.pinned) return;
+          state.cardId = id;
+          renderCanvas();
+          renderCard();
+        }, 120);
+      });
+      els.canvas.addEventListener("keydown", function (e) {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        var pill = e.target.closest("[data-pill]");
+        if (!pill) return;
+        e.preventDefault();
+        state.cardId = Number(pill.getAttribute("data-pill"));
+        state.pinned = true;
+        renderCanvas();
+        renderCard();
+      });
+
+      els.cardSlot.addEventListener("click", function (e) {
+        var jump = e.target.closest("[data-jump]");
+        if (jump) { jumpTo(Number(jump.getAttribute("data-jump"))); return; }
+        var act = e.target.closest("[data-action]");
+        if (!act) return;
+        var action = act.getAttribute("data-action");
+        if (action === "close-card") {
+          state.cardId = null;
+          state.pinned = false;
+          renderCanvas();
+          renderCard();
+        } else if (action === "toggle-focus") {
+          if (state.cardId !== null) {
+            state.focusId = state.focusId === state.cardId ? null : state.cardId;
+            update();
+          }
+        }
+      });
+
+      document.getElementById("zoom-out").addEventListener("click", function () {
+        state.scale = Math.max(0.4, Math.round((state.scale - 0.15) * 100) / 100);
+        applyScale();
+      });
+      document.getElementById("zoom-in").addEventListener("click", function () {
+        state.scale = Math.min(1.6, Math.round((state.scale + 0.15) * 100) / 100);
+        applyScale();
+      });
+      document.getElementById("zoom-reset").addEventListener("click", function () {
+        state.scale = 1;
+        applyScale();
+      });
+
+      var resizeTimer = null;
+      window.addEventListener("resize", function () {
+        if (resizeTimer !== null) window.clearTimeout(resizeTimer);
+        resizeTimer = window.setTimeout(function () { renderCanvas(); }, 150);
+      });
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(function () { renderCanvas(); });
+      }
+
+      update();
+            })
+        .catch(function (err) {
+          console.error(err);
+          var slot = document.getElementById("card-slot");
+          if (slot) slot.innerHTML = '<p style="padding:1rem">データを読み込めませんでした（data.json）。</p>';
+        });
+</script>
+  </body>
+</html>
