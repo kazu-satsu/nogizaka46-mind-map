@@ -1,0 +1,1 @@
+# nogizaka46-mind-map
