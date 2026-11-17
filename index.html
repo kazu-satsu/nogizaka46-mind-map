@@ -1365,6 +1365,8 @@
         moved: false,
         pinchDist: 0, pinchScale: 1,
         pinchAnchorX: 0, pinchAnchorY: 0, /* content coords under the midpoint */
+        velX: 0, velY: 0, /* finger velocity, px/ms, for flick momentum */
+        lastX: 0, lastY: 0, lastT: 0,
       };
       var panHintEl = document.getElementById("pan-hint");
       var panHintGone = false;
@@ -1380,6 +1382,7 @@
       /* Zoom so the content point under (cx, cy) — offsets inside the scroll
          viewport — stays under the same spot. */
       function zoomAt(newScale, cx, cy) {
+        stopMomentum();
         var sc = els.scroll;
         var old = state.scale;
         newScale = clampScale(newScale);
@@ -1396,6 +1399,7 @@
         zoomAt(state.scale * factor, sc.clientWidth / 2, sc.clientHeight / 2);
       }
       function fitMap() {
+        stopMomentum();
         if (!lastSize || lastSize.w <= 0 || lastSize.h <= 0) return;
         var sc = els.scroll;
         var s = Math.min(sc.clientWidth / lastSize.w, sc.clientHeight / lastSize.h);
@@ -1416,6 +1420,48 @@
         gesture.panScrollLeft = els.scroll.scrollLeft;
         gesture.panScrollTop = els.scroll.scrollTop;
         gesture.moved = false;
+        gesture.velX = 0; gesture.velY = 0;
+        gesture.lastX = p.x; gesture.lastY = p.y;
+        gesture.lastT = performance.now();
+      }
+
+      /* Flick momentum: a plain drag tracks the finger 1:1, but a swipe
+         must keep gliding after the finger lifts, like native scrolling —
+         without this the map only ever moves the literal finger distance
+         and feels like it "barely moves". Velocity is the finger's, in
+         px/ms, smoothed over the last moves; on release the scroll
+         continues at that speed and decays until it settles or hits an
+         edge. A finger that paused before lifting does not fling. */
+      var momentumId = null;
+      function stopMomentum() {
+        if (momentumId !== null) {
+          cancelAnimationFrame(momentumId);
+          momentumId = null;
+        }
+      }
+      function startMomentum() {
+        stopMomentum();
+        if (performance.now() - gesture.lastT > 80) return;
+        var svx = -gesture.velX, svy = -gesture.velY; /* scroll velocity */
+        var speed = Math.hypot(svx, svy);
+        if (speed < 0.15) return;
+        if (speed > 4) { svx *= 4 / speed; svy *= 4 / speed; }
+        var last = performance.now();
+        var step = function (t) {
+          var dt = Math.min(50, Math.max(1, t - last));
+          last = t;
+          var sc = els.scroll;
+          var beforeL = sc.scrollLeft, beforeT = sc.scrollTop;
+          sc.scrollLeft = beforeL + svx * dt;
+          sc.scrollTop = beforeT + svy * dt;
+          if (sc.scrollLeft === beforeL) svx = 0;
+          if (sc.scrollTop === beforeT) svy = 0;
+          var decay = Math.pow(0.95, dt / 16.7);
+          svx *= decay; svy *= decay;
+          if (Math.hypot(svx, svy) < 0.03) { momentumId = null; return; }
+          momentumId = requestAnimationFrame(step);
+        };
+        momentumId = requestAnimationFrame(step);
       }
       function startPinch() {
         var pts = pointerPair();
@@ -1441,6 +1487,7 @@
       }
 
       els.scroll.addEventListener("pointerdown", function (e) {
+        stopMomentum();
         lastPointerType = e.pointerType || "";
         if (e.target.closest && e.target.closest(".zoom, .card")) return;
         if (e.pointerType === "mouse" && e.button !== 0) return;
@@ -1470,6 +1517,13 @@
           els.scroll.scrollTop = gesture.pinchAnchorY * ns - midY;
           dismissHint();
         } else if (gesture.mode === "pan" && gesture.pointers.size === 1) {
+          var nowT = performance.now();
+          var dtm = nowT - gesture.lastT;
+          if (dtm > 0) {
+            gesture.velX = gesture.velX * 0.65 + ((e.clientX - gesture.lastX) / dtm) * 0.35;
+            gesture.velY = gesture.velY * 0.65 + ((e.clientY - gesture.lastY) / dtm) * 0.35;
+            gesture.lastX = e.clientX; gesture.lastY = e.clientY; gesture.lastT = nowT;
+          }
           var ddx = e.clientX - gesture.panStartX;
           var ddy = e.clientY - gesture.panStartY;
           if (!gesture.moved && Math.abs(ddx) + Math.abs(ddy) > 5) {
@@ -1487,6 +1541,7 @@
       function endPointer(e) {
         if (!gesture.pointers.has(e.pointerId)) return;
         var wasMoved = gesture.moved;
+        var wasMode = gesture.mode;
         gesture.pointers.delete(e.pointerId);
         if (gesture.pointers.size === 0) {
           gesture.mode = null;
@@ -1496,6 +1551,7 @@
             suppressClick = true;
             window.setTimeout(function () { suppressClick = false; }, 350);
           }
+          if (wasMoved && wasMode === "pan") startMomentum();
         } else {
           /* Pair changed (e.g. one pinch finger lifted): re-baseline so the
              remaining finger pans from here — no jump, no phantom pinch. */
@@ -1517,6 +1573,7 @@
         if (gesture.pointers.has(e.pointerId)) endPointer(e);
       });
       window.addEventListener("blur", function () {
+        stopMomentum();
         if (gesture.pointers.size > 0) {
           gesture.pointers.clear();
           gesture.mode = null;
