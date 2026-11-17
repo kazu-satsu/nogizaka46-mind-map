@@ -179,7 +179,22 @@
       .stage { position: relative; display: flex; flex-direction: column; height: 62vh; }
       @media (min-width: 1024px) { .stage { height: auto; flex: 1; min-height: 0; } }
       .canvas-wrap { position: relative; flex: 1; min-height: 0; }
-      .scroll { position: absolute; inset: 0; overflow: auto; -webkit-overflow-scrolling: touch; }
+      .scroll {
+        position: absolute; inset: 0; overflow: auto; -webkit-overflow-scrolling: touch;
+        touch-action: none; overscroll-behavior: contain; cursor: grab;
+      }
+      .scroll.panning { cursor: grabbing; }
+      .pan-hint {
+        position: absolute; bottom: 0.75rem; left: 0.75rem; z-index: 5;
+        max-width: calc(100% - 1.5rem);
+        border-radius: 999px; border: 1px solid var(--border);
+        background: var(--surface); padding: 0.375rem 0.75rem;
+        font-size: 12px; color: var(--dim);
+        box-shadow: 0 1px 3px rgb(36 26 43 / 0.12);
+        pointer-events: none;
+        transition: opacity 0.4s ease;
+      }
+      .pan-hint.gone { opacity: 0; }
       .scaler { transform-origin: 0 0; width: max-content; }
       .canvas {
         position: relative; padding: 2rem;
@@ -373,7 +388,9 @@
               <span class="zval" id="zoom-val">100%</span>
               <button type="button" class="zbtn" id="zoom-in" aria-label="拡大">＋</button>
               <button type="button" class="zreset" id="zoom-reset" aria-label="表示倍率を100%に戻す">リセット</button>
+              <button type="button" class="zreset" id="zoom-fit" aria-label="マップ全体を表示する">全体表示</button>
             </div>
+            <div class="pan-hint" id="pan-hint" aria-hidden="true">ドラッグで移動 ／ 2本指ピンチ・Ctrl＋ホイールで拡大縮小</div>
           </div>
           <div id="card-slot"></div>
         </div>
@@ -1258,6 +1275,7 @@
       });
 
       els.canvas.addEventListener("click", function (e) {
+        if (suppressClick) { suppressClick = false; return; }
         var tg = e.target.closest("[data-toggle]");
         if (tg) {
           e.stopPropagation();
@@ -1280,6 +1298,7 @@
         }
       });
       els.canvas.addEventListener("mouseover", function (e) {
+        if (gesture.pointers.size > 0) return;
         var pill = e.target.closest("[data-pill]");
         if (!pill) return;
         var id = Number(pill.getAttribute("data-pill"));
@@ -1324,18 +1343,216 @@
         }
       });
 
-      document.getElementById("zoom-out").addEventListener("click", function () {
-        state.scale = Math.max(0.4, Math.round((state.scale - 0.15) * 100) / 100);
+      /* ---------------- Pan & zoom ----------------
+         PC: drag to pan (starting on a node is fine; the click that follows
+         a real drag is suppressed so nodes are not selected by accident).
+         Ctrl+wheel / trackpad pinch zooms; double-click zoom is mouse-only.
+         Touch: ONE finger pans only — it never changes the scale. Zoom is
+         two-finger pinch only, anchored at the fingers' midpoint.
+         Pointer bookkeeping always removes pointers on up/cancel, and the
+         gesture baseline is re-taken whenever the pointer pair changes, so
+         a leftover "ghost" pointer can never turn a one-finger drag into
+         a phantom pinch. */
+      var MIN_SCALE = 0.35;
+      var MAX_SCALE = 2.2;
+      var suppressClick = false;
+      var lastPointerType = "";
+      var gesture = {
+        pointers: new Map(), /* pointerId -> {x, y} (client coords) */
+        mode: null, /* null | "pan" | "pinch" */
+        panStartX: 0, panStartY: 0,
+        panScrollLeft: 0, panScrollTop: 0,
+        moved: false,
+        pinchDist: 0, pinchScale: 1,
+        pinchAnchorX: 0, pinchAnchorY: 0, /* content coords under the midpoint */
+      };
+      var panHintEl = document.getElementById("pan-hint");
+      var panHintGone = false;
+      function dismissHint() {
+        if (panHintGone || !panHintEl) return;
+        panHintGone = true;
+        panHintEl.classList.add("gone");
+        window.setTimeout(function () { if (panHintEl) panHintEl.style.display = "none"; }, 500);
+      }
+      window.setTimeout(dismissHint, 12000);
+
+      function clampScale(s) { return Math.min(MAX_SCALE, Math.max(MIN_SCALE, s)); }
+      /* Zoom so the content point under (cx, cy) — offsets inside the scroll
+         viewport — stays under the same spot. */
+      function zoomAt(newScale, cx, cy) {
+        var sc = els.scroll;
+        var old = state.scale;
+        newScale = clampScale(newScale);
+        if (newScale === old) return;
+        var contentX = (sc.scrollLeft + cx) / old;
+        var contentY = (sc.scrollTop + cy) / old;
+        state.scale = newScale;
         applyScale();
-      });
-      document.getElementById("zoom-in").addEventListener("click", function () {
-        state.scale = Math.min(1.6, Math.round((state.scale + 0.15) * 100) / 100);
+        sc.scrollLeft = contentX * newScale - cx;
+        sc.scrollTop = contentY * newScale - cy;
+      }
+      function zoomStep(factor) {
+        var sc = els.scroll;
+        zoomAt(state.scale * factor, sc.clientWidth / 2, sc.clientHeight / 2);
+      }
+      function fitMap() {
+        if (!lastSize || lastSize.w <= 0 || lastSize.h <= 0) return;
+        var sc = els.scroll;
+        var s = Math.min(sc.clientWidth / lastSize.w, sc.clientHeight / lastSize.h);
+        state.scale = Math.min(1, clampScale(s));
         applyScale();
+        sc.scrollLeft = 0;
+        sc.scrollTop = 0;
+      }
+
+      function pointerPair() {
+        var pts = [];
+        gesture.pointers.forEach(function (p) { pts.push(p); });
+        return pts;
+      }
+      function startPan(p) {
+        gesture.mode = "pan";
+        gesture.panStartX = p.x; gesture.panStartY = p.y;
+        gesture.panScrollLeft = els.scroll.scrollLeft;
+        gesture.panScrollTop = els.scroll.scrollTop;
+        gesture.moved = false;
+      }
+      function startPinch() {
+        var pts = pointerPair();
+        if (pts.length < 2) return;
+        var dx = pts[1].x - pts[0].x, dy = pts[1].y - pts[0].y;
+        var rect = els.scroll.getBoundingClientRect();
+        var midX = (pts[0].x + pts[1].x) / 2 - rect.left;
+        var midY = (pts[0].y + pts[1].y) / 2 - rect.top;
+        gesture.mode = "pinch";
+        gesture.pinchDist = Math.max(1, Math.hypot(dx, dy));
+        gesture.pinchScale = state.scale;
+        gesture.pinchAnchorX = (els.scroll.scrollLeft + midX) / state.scale;
+        gesture.pinchAnchorY = (els.scroll.scrollTop + midY) / state.scale;
+        gesture.moved = true;
+      }
+      /* Re-baseline after the pointer set changes mid-gesture, so the map
+         never jumps and a remaining single finger continues as a pan. */
+      function rebaseline() {
+        var pts = pointerPair();
+        if (pts.length >= 2) startPinch();
+        else if (pts.length === 1) startPan(pts[0]);
+        else { gesture.mode = null; els.scroll.classList.remove("panning"); }
+      }
+
+      els.scroll.addEventListener("pointerdown", function (e) {
+        lastPointerType = e.pointerType || "";
+        if (e.target.closest && e.target.closest(".zoom, .card")) return;
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+        gesture.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (gesture.pointers.size === 1) {
+          startPan({ x: e.clientX, y: e.clientY });
+        } else if (gesture.pointers.size === 2) {
+          try { els.scroll.setPointerCapture(e.pointerId); } catch (err) {}
+          startPinch();
+          els.scroll.classList.add("panning");
+        }
       });
+      els.scroll.addEventListener("pointermove", function (e) {
+        if (!gesture.pointers.has(e.pointerId)) return;
+        gesture.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (gesture.mode === "pinch" && gesture.pointers.size >= 2) {
+          var pts = pointerPair();
+          var dx = pts[1].x - pts[0].x, dy = pts[1].y - pts[0].y;
+          var dist = Math.max(1, Math.hypot(dx, dy));
+          var rect = els.scroll.getBoundingClientRect();
+          var midX = (pts[0].x + pts[1].x) / 2 - rect.left;
+          var midY = (pts[0].y + pts[1].y) / 2 - rect.top;
+          var ns = clampScale(gesture.pinchScale * (dist / gesture.pinchDist));
+          state.scale = ns;
+          applyScale();
+          els.scroll.scrollLeft = gesture.pinchAnchorX * ns - midX;
+          els.scroll.scrollTop = gesture.pinchAnchorY * ns - midY;
+          dismissHint();
+        } else if (gesture.mode === "pan" && gesture.pointers.size === 1) {
+          var ddx = e.clientX - gesture.panStartX;
+          var ddy = e.clientY - gesture.panStartY;
+          if (!gesture.moved && Math.abs(ddx) + Math.abs(ddy) > 5) {
+            gesture.moved = true;
+            els.scroll.classList.add("panning");
+            try { els.scroll.setPointerCapture(e.pointerId); } catch (err) {}
+          }
+          if (gesture.moved) {
+            els.scroll.scrollLeft = gesture.panScrollLeft - ddx;
+            els.scroll.scrollTop = gesture.panScrollTop - ddy;
+            dismissHint();
+          }
+        }
+      });
+      function endPointer(e) {
+        if (!gesture.pointers.has(e.pointerId)) return;
+        var wasMoved = gesture.moved;
+        gesture.pointers.delete(e.pointerId);
+        if (gesture.pointers.size === 0) {
+          gesture.mode = null;
+          gesture.moved = false;
+          els.scroll.classList.remove("panning");
+          if (wasMoved) {
+            suppressClick = true;
+            window.setTimeout(function () { suppressClick = false; }, 350);
+          }
+        } else {
+          /* Pair changed (e.g. one pinch finger lifted): re-baseline so the
+             remaining finger pans from here — no jump, no phantom pinch. */
+          rebaseline();
+          gesture.moved = wasMoved;
+        }
+      }
+      els.scroll.addEventListener("pointerup", endPointer);
+      els.scroll.addEventListener("pointercancel", endPointer);
+      /* When a drag captured the pointer, the trailing click lands on the
+         scroll container itself and never reaches the canvas handler that
+         consumes suppressClick — clear the flag here (bubble phase, so it
+         runs after the canvas handler) instead of eating the next tap. */
+      els.scroll.addEventListener("click", function () {
+        if (suppressClick) suppressClick = false;
+      });
+      /* Safety net: a lost pointer capture must not leave a ghost pointer. */
+      els.scroll.addEventListener("lostpointercapture", function (e) {
+        if (gesture.pointers.has(e.pointerId)) endPointer(e);
+      });
+      window.addEventListener("blur", function () {
+        if (gesture.pointers.size > 0) {
+          gesture.pointers.clear();
+          gesture.mode = null;
+          gesture.moved = false;
+          els.scroll.classList.remove("panning");
+        }
+      });
+
+      els.scroll.addEventListener("wheel", function (e) {
+        if (!e.ctrlKey && !e.metaKey) return; /* plain wheel keeps native scroll */
+        e.preventDefault();
+        var rect = els.scroll.getBoundingClientRect();
+        var factor = Math.exp(-e.deltaY * 0.01);
+        zoomAt(state.scale * factor, e.clientX - rect.left, e.clientY - rect.top);
+        dismissHint();
+      }, { passive: false });
+
+      els.scroll.addEventListener("dblclick", function (e) {
+        /* Mouse only: on touch devices a double-tap (or a tap right after
+           touching a node) must not zoom — that was the one-finger zoom bug. */
+        if (lastPointerType !== "mouse") return;
+        if (e.target.closest && e.target.closest("[data-pill], [data-toggle], .zoom, .card")) return;
+        var rect = els.scroll.getBoundingClientRect();
+        zoomAt(state.scale * 1.4, e.clientX - rect.left, e.clientY - rect.top);
+        dismissHint();
+      });
+      /* iOS Safari gesture events would otherwise zoom the page itself. */
+      els.scroll.addEventListener("gesturestart", function (e) { e.preventDefault(); });
+
+      document.getElementById("zoom-out").addEventListener("click", function () { zoomStep(0.85); });
+      document.getElementById("zoom-in").addEventListener("click", function () { zoomStep(1.18); });
       document.getElementById("zoom-reset").addEventListener("click", function () {
-        state.scale = 1;
-        applyScale();
+        var sc = els.scroll;
+        zoomAt(1, sc.clientWidth / 2, sc.clientHeight / 2);
       });
+      document.getElementById("zoom-fit").addEventListener("click", fitMap);
 
       var resizeTimer = null;
       window.addEventListener("resize", function () {
